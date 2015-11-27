@@ -5,13 +5,21 @@ import sys
 import random
 import math
 
+class Block:
+  def __init__(self, position, size, sprite):
+    self.pos = position
+    self.size = size
+    self.rect = pygame.Rect(position, size)
+    self.col = (random.randrange(255), random.randrange(255), random.randrange(255))
+    self.sprite = sprite
 
+  def draw(self, screen):
+    # pygame.draw.rect(screen, self.col, self.rect)
+    # print("{0:14}{1:14}".format(str(self.size), str(self.pos)))
+    screen.blit(pygame.transform.scale(self.sprite, self.size), self.pos)
 
 class Ball:
-  def __init__(self, start_pos, start_vel, radius, color, screen_size, paddle_height):
-
-    self.screen_size = screen_size
-    self.paddle_height = paddle_height
+  def __init__(self, start_pos, start_vel, radius, color):
 
     self.pos = start_pos
     self.vel = start_vel
@@ -61,9 +69,20 @@ class Breakout:
     pygame.font.init()
     self.font = pygame.font.Font("assets/breakout.ttf", 14)
 
+    # Set up screen
     self.screen_size = (800, 600)
     self.screen = pygame.display.set_mode(self.screen_size)
 
+    # Set up sound
+    pygame.mixer.pre_init(44100, -16, 1, 512)
+    pygame.mixer.init()
+    self.snd_block_break = [
+      pygame.mixer.Sound(file="assets/break_a.wav"),
+      pygame.mixer.Sound(file="assets/break_b.wav"),
+      pygame.mixer.Sound(file="assets/break_c.wav")
+    ]
+
+    # Set up Paddle
     self.paddle_size = (180, 10)
     self.paddle_height = self.screen_size[1] - 80
     self.paddle_pos = self.screen_size[0]/2 - self.paddle_size[0]/2
@@ -71,22 +90,43 @@ class Breakout:
     self.paddle_col = (0, 40, 255)
     self.paddle_speed = 15
 
+    # Set up Ball
     # rand_angle = random.randrange(0, 360)
     rand_angle = -45
-    velocity = 20
-
+    velocity = 10
     rad = 10
     self.ball = Ball(
-      start_pos = [self.screen_size[0]/2, self.screen_size[1]/2],
+      # start_pos = [self.screen_size[0]/2, self.screen_size[1]/2],
+      start_pos = [10 + rad*2, 10 + rad*2],
       # start_pos = [int(self.paddle_pos + self.paddle_size[0]/2), int(self.paddle_height - rad)],
       # start_vel = [100, -100],
       start_vel = [velocity * math.cos(math.radians(rand_angle)), velocity * math.sin(math.radians(rand_angle))],
       # start_vel = [5, -5],
       radius = rad,
-      color = (255, 255, 255),
-      screen_size = self.screen_size,
-      paddle_height = self.paddle_height
+      color = (255, 255, 255)
     )
+
+    # Set up blocks
+    self.block_num_rows = 10
+    self.block_num_cols = 40
+    self.block_width = self.screen_size[0] / self.block_num_cols
+    self.block_height = self.block_width
+    self.block_sprite = []
+    letters = "abcdefghijklmnopqr"
+    for let in letters:
+      self.block_sprite.append(pygame.image.load("assets/block_" + let + ".png").convert_alpha())
+    self.blocks = []
+    for r in range(self.block_num_rows):
+      for c in range(self.block_num_cols):
+        cur_pos = (c * self.block_width, 60 + r * self.block_height)
+        self.blocks.append(
+          Block(position = (int(cur_pos[0]), int(cur_pos[1])), 
+                size = (int(self.block_width), int(self.block_height)), 
+                sprite = self.block_sprite[random.randrange(len(self.block_sprite))])
+        )
+
+
+
 
 
   def paddle_update(self):
@@ -138,16 +178,97 @@ class Breakout:
 
 
 
+  def check_ball_block_hit(self, rect):
+    collided = []
+
+    for b in self.blocks:
+      if rect.colliderect(b):
+        collided.append(b)
+
+    if len(collided) > 0:
+      return collided
+    else:
+      return None
+
+
+
+  # def get_touching_blocks(self, rect):
+
+
+
+  def process_blocks(self, newx, newy):
+
+    new_rect = Rect(self.ball.rect)
+    new_rect.x = newx - self.ball.radius
+    new_rect.y = newy - self.ball.radius
+
+    blocks = self.check_ball_block_hit(new_rect)
+    if blocks is not None:
+    # if check_ball_block_hit(new_rect):
+      initial_blocks = list(blocks)
+      incx = self.ball.vel[0] / self.ball.inc_factor
+      incy = self.ball.vel[1] / self.ball.inc_factor
+      # while check_ball_block_hit(new_rect):
+      while blocks is not None:
+        newx -= incx
+        newy -= incy
+        new_rect.x = newx - self.ball.radius
+        new_rect.y = newy - self.ball.radius
+        blocks = self.check_ball_block_hit(new_rect)
+
+      bounceX = False
+      bounceY = False
+
+      for b in initial_blocks:
+        self.blocks.remove(b)
+        if new_rect.top == b.rect.bottom or new_rect.bottom == b.rect.top:
+          bounceY = True
+        elif new_rect.left == b.rect.right or new_rect.right == b.rect.left:
+          bounceX = True
+
+      if bounceX:
+        self.ball.vel[0] = -self.ball.vel[0]
+      if bounceY:
+        self.ball.vel[1] = -self.ball.vel[1]
+
+      self.snd_block_break[random.randrange(3)].play()
+    return newx, newy
+
+
+      # newx = new_rect.x + self.ball.radius
+      # newy = new_rect.y + self.ball.radius
+     
+      # if new_rect.bottom == self.paddle_rect.top:
+      #   mag = math.sqrt(self.ball.vel[0]**2 + self.ball.vel[1]**2)
+      #   pad_perc = (newx - self.paddle_pos) / self.paddle_size[0]
+      #   angle = -165 + pad_perc*150
+      #   # angle = -30
+
+      #   self.ball.vel[0] = mag * math.cos(math.radians(angle))
+      #   self.ball.vel[1] = mag * math.sin(math.radians(angle))
+      # elif new_rect.top == self.paddle_rect.bottom:
+      #   self.ball.vel[1] = -self.ball.vel[1]
+      # elif new_rect.left == self.paddle_rect.right or new_rect.right == self.paddle_rect.left:
+      #   self.ball.vel[0] = -self.ball.vel[0]
+
+
+
+
+
+
+
+
   def ball_update(self):
     newx = self.ball.pos[0] + self.ball.vel[0]
     newy = self.ball.pos[1] + self.ball.vel[1]
 
-    # self.ball.past_pos.insert(0, self.ball.pos)
     self.ball.past_pos.append([self.ball.pos[0], self.ball.pos[1]])
     if len(self.ball.past_pos) > self.ball.past_length:
       self.ball.past_pos = self.ball.past_pos[1:]
 
     newx, newy = self.check_ball_paddle_hit(newx, newy)
+
+    newx, newy = self.process_blocks(newx, newy)
 
     # Check for collision with walls
     if (newx < self.ball.radius or newx > self.screen_size[0] - self.ball.radius) and (newy < self.ball.radius or newy > self.screen_size[1] - self.ball.radius):
@@ -206,6 +327,8 @@ class Breakout:
       self.ball.draw(self.screen)
       # pygame.draw.rect(self.screen, self.paddle_col, pygame.Rect(self.paddle_pos, self.paddle_height, self.paddle_size[0], self.paddle_size[1]))
       pygame.draw.rect(self.screen, self.paddle_col, self.paddle_rect)
+      for b in self.blocks:
+        b.draw(self.screen)
 
       pygame.display.flip()
 
