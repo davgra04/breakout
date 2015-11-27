@@ -1,7 +1,7 @@
 Breakout
 ========
 
-![Gameplay Screenshot](https://raw.githubusercontent.com/davgra04/Dottizer/master/screenshots/screen01.png)
+![Gameplay Screenshot](https://raw.githubusercontent.com/davgra04/breakout/master/screenshots/screen01.png)
 
 ### Description
 
