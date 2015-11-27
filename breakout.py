@@ -97,8 +97,8 @@ class Breakout:
     rad = 10
     self.ball = Ball(
       # start_pos = [self.screen_size[0]/2, self.screen_size[1]/2],
-      start_pos = [10 + rad*2, 10 + rad*2],
-      # start_pos = [int(self.paddle_pos + self.paddle_size[0]/2), int(self.paddle_height - rad)],
+      # start_pos = [10 + rad*2, 10 + rad*2],
+      start_pos = [int(self.paddle_pos + self.paddle_size[0]/2), int(self.paddle_height - rad)],
       # start_vel = [100, -100],
       start_vel = [velocity * math.cos(math.radians(rand_angle)), velocity * math.sin(math.radians(rand_angle))],
       # start_vel = [5, -5],
